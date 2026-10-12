@@ -1,7 +1,7 @@
 # Welcome to your Expo app 👋
 
 <p align="center">
-  <img src="logo.png" alt="Aikus" width="700">
+  <img src="logo.png" alt="Aikus" width="200" height="200">
 </p>
 
 
