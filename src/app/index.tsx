@@ -152,9 +152,9 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 10, color: '#68574D', fontSize: 18, lineHeight: 26, textAlign: 'center', fontWeight: '500' },
   welcomePill: { marginTop: 25, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: '#FCEBDD' },
   welcomeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D56A34' },
-  welcomeText: { color: '#855332', fontSize: 14, fontWeight: '600' },
+  welcomeText: { color: '#855332', fontSize: 18, fontWeight: '600' },
   loadingContainer: { alignItems: 'center', minHeight: 84, justifyContent: 'center', paddingBottom: 12 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 18 },
   loadingDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: ORANGE },
-  loadingText: { marginTop: 10, color: '#806E63', fontSize: 14, letterSpacing: 0.2 },
+  loadingText: { marginTop: 10, color: '#66574F', fontSize: 18, letterSpacing: 0.2 },
 });

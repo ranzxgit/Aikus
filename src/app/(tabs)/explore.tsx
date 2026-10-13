@@ -45,7 +45,11 @@ export default function TabTwoScreen() {
           </ThemedText>
 
           <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="Open Expo documentation"
+              style={({ pressed }) => [styles.linkPressable, pressed && styles.pressed]}
+            >
               <ThemedView type="backgroundElement" style={styles.linkButton}>
                 <ThemedText type="link">Expo documentation</ThemedText>
                 <SymbolView
@@ -157,6 +161,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.one,
     alignItems: 'center',
+  },
+  linkPressable: {
+    minHeight: 56,
+    justifyContent: 'center',
   },
   sectionsWrapper: {
     gap: Spacing.five,
