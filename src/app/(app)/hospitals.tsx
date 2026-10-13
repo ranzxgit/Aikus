@@ -1,13 +1,14 @@
+import { colors } from '@/theme/tokens';
 import { router } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import hospitalsJson from '@/data/hospitals.json';
 import { HOSPITAL_TEXT } from '@/constants/hospitalCopy';
 import { LanguageToggle } from '@/components/language-toggle';
-import { useLanguageSetting } from '@/hooks/use-language-setting';
+import { AccessiblePressable as Pressable, Card, LargeTitle, PrimaryButton, Screen, SecondaryButton } from '@/components/ui';
+import { useAppFlow } from '@/providers/app-flow-provider';
 import { getDeviceLocation, type DeviceLocationResult } from '@/services/hospitalLocation';
 import { sortHospitals } from '@/services/distance';
 import type { Hospital } from '@/types/hospital';
@@ -15,7 +16,7 @@ import type { Hospital } from '@/types/hospital';
 const hospitals = hospitalsJson as Hospital[];
 
 export default function HospitalsScreen() {
-  const { language, changeLanguage } = useLanguageSetting();
+  const { language, changeLanguage } = useAppFlow();
   const [location, setLocation] = useState<DeviceLocationResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [directionsFailureId, setDirectionsFailureId] = useState<string | null>(null);
@@ -69,25 +70,26 @@ export default function HospitalsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <Screen style={styles.safeArea}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={text.back}
-          onPress={() => router.replace('/')}
+          onPress={() => router.replace('/(app)/home')}
           style={styles.backButton}
         >
           <Text style={styles.backText}>‹  {text.back}</Text>
         </Pressable>
 
         <LanguageToggle language={language} onChange={changeLanguage} />
-        <Text accessibilityRole="header" style={styles.title}>{text.title}</Text>
+        <LargeTitle style={styles.title}>{text.title}</LargeTitle>
         <Text style={styles.mapsNote}>{text.mapsOfflineNote}</Text>
         <Text style={styles.mapsNote}>{text.facilitySourceNote}</Text>
         <Pressable
           accessibilityRole="link"
           accessibilityLabel={text.osmAttribution}
           onPress={() => void Linking.openURL('https://www.openstreetmap.org/copyright').catch(() => undefined)}
+          style={styles.attributionButton}
         >
           <Text style={styles.attribution}>{text.osmAttribution}</Text>
         </Pressable>
@@ -109,7 +111,7 @@ export default function HospitalsScreen() {
             ? 'SAMPLE na address — palitan ng beripikadong address'
             : hospital.address;
           return (
-            <View key={hospital.id} style={styles.card}>
+            <Card key={hospital.id} style={styles.card}>
               <Text style={styles.hospitalName}>{hospital.name}</Text>
               <Text style={styles.detailLabel}>{text.addressLabel}</Text>
               <Text style={styles.detailText}>{address}</Text>
@@ -135,21 +137,12 @@ export default function HospitalsScreen() {
                 </View>
               ) : null}
               {hospital.phone.trim() ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={text.callHospitalLabel(hospital.name)}
-                  onPress={() => callHospital(hospital.phone)}
-                  style={[styles.actionButton, styles.callButton]}
-                >
+                <PrimaryButton label={text.callHospitalLabel(hospital.name)} onPress={() => callHospital(hospital.phone)} style={[styles.actionButton, styles.callButton]}>
                   <Text style={styles.callButtonText}>{text.call}</Text>
-                </Pressable>
+                </PrimaryButton>
               ) : null}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={hasCoordinates
-                  ? text.directionsLabel(hospital.name)
-                  : `${text.directionsUnavailable}: ${hospital.name}`}
-                accessibilityState={{ disabled: !hasCoordinates }}
+              <SecondaryButton
+                label={hasCoordinates ? text.directionsLabel(hospital.name) : `${text.directionsUnavailable}: ${hospital.name}`}
                 disabled={!hasCoordinates}
                 onPress={() => openDirections(hospital)}
                 style={[styles.actionButton, styles.directionsButton, !hasCoordinates && styles.disabledButton]}
@@ -157,79 +150,92 @@ export default function HospitalsScreen() {
                 <Text style={styles.directionsButtonText}>
                   {hasCoordinates ? text.directions : text.directionsUnavailable}
                 </Text>
-              </Pressable>
-            </View>
+              </SecondaryButton>
+            </Card>
           );
         })}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFF9F4' },
+  safeArea: { flex: 1, backgroundColor: colors.background },
   scrollView: { flex: 1 },
   content: {
     width: '100%',
     maxWidth: 760,
     alignSelf: 'center',
     gap: 16,
-    paddingHorizontal: 18,
     paddingTop: 12,
     paddingBottom: 24,
   },
   backButton: {
-    minHeight: 56,
+    minHeight: 60,
     alignSelf: 'flex-start',
     justifyContent: 'center',
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: 999,
     backgroundColor: '#F0E3DA',
   },
-  backText: { color: '#32251F', fontSize: 18, fontWeight: '700' },
-  title: { color: '#32251F', fontSize: 28, lineHeight: 36, fontWeight: '800' },
+  backText: { color: colors.text, fontSize: 18,
+    fontFamily: 'Inter', fontWeight: '700' },
+  title: { color: colors.text, fontSize: 34,
+    fontFamily: 'Inter', lineHeight: 42, fontWeight: '800' },
   notice: {
-    color: '#49382F',
+    color: colors.text,
     backgroundColor: '#F0E8E2',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 14,
     fontSize: 18,
+    fontFamily: 'Inter',
     lineHeight: 26,
   },
-  mapsNote: { color: '#49382F', fontSize: 18, lineHeight: 26 },
-  attribution: { color: '#194D8C', fontSize: 18, lineHeight: 26, textDecorationLine: 'underline' },
+  mapsNote: { color: colors.secondaryText, fontSize: 18,
+    fontFamily: 'Inter', lineHeight: 26 },
+  attribution: { color: colors.accent, fontSize: 18,
+    fontFamily: 'Inter', lineHeight: 26, textDecorationLine: 'underline' },
+  attributionButton: { minHeight: 60, justifyContent: 'center' },
   card: {
     gap: 10,
     padding: 16,
-    borderRadius: 18,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#D7C5B8',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.card,
   },
-  hospitalName: { color: '#32251F', fontSize: 22, lineHeight: 30, fontWeight: '800' },
-  detailLabel: { color: '#49382F', fontSize: 18, fontWeight: '700' },
-  detailText: { color: '#32251F', fontSize: 18, lineHeight: 26 },
-  distance: { color: '#32251F', fontSize: 20, lineHeight: 28, fontWeight: '700' },
+  hospitalName: { color: colors.text, fontSize: 22,
+    fontFamily: 'Inter', lineHeight: 30, fontWeight: '800' },
+  detailLabel: { color: colors.secondaryText, fontSize: 18,
+    fontFamily: 'Inter', fontWeight: '700' },
+  detailText: { color: colors.text, fontSize: 18,
+    fontFamily: 'Inter', lineHeight: 26 },
+  distance: { color: colors.text, fontSize: 20,
+    fontFamily: 'Inter', lineHeight: 28, fontWeight: '700' },
   addressFallback: {
     gap: 8,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#70421F',
+    borderColor: colors.secondaryText,
     backgroundColor: '#FFF5E8',
     padding: 14,
   },
-  addressFallbackLabel: { color: '#32251F', fontSize: 18, lineHeight: 26, fontWeight: '700' },
-  addressFallbackText: { color: '#1F1713', fontSize: 22, lineHeight: 30, fontWeight: '800' },
+  addressFallbackLabel: { color: colors.text, fontSize: 18,
+    fontFamily: 'Inter', lineHeight: 26, fontWeight: '700' },
+  addressFallbackText: { color: '#1F1713', fontSize: 22,
+    fontFamily: 'Inter', lineHeight: 30, fontWeight: '800' },
   actionButton: {
     minHeight: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
+    borderRadius: 999,
     paddingHorizontal: 16,
   },
-  callButton: { backgroundColor: '#56301F' },
-  callButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
-  directionsButton: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#56301F' },
-  directionsButtonText: { color: '#32251F', fontSize: 18, fontWeight: '800' },
+  callButton: { backgroundColor: colors.primary },
+  callButtonText: { color: colors.card, fontSize: 18,
+    fontFamily: 'Inter', fontWeight: '800' },
+  directionsButton: { backgroundColor: colors.card, borderWidth: 2, borderColor: colors.primary },
+  directionsButtonText: { color: colors.text, fontSize: 18,
+    fontFamily: 'Inter', fontWeight: '800' },
   disabledButton: { backgroundColor: '#EDE8E4', borderColor: '#87786F' },
 });

@@ -1,10 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors } from '@/theme/tokens';
+import { AccessiblePressable as Pressable, EmergencyButton, Screen } from '@/components/ui';
 import * as Speech from 'expo-speech';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -12,17 +13,20 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CHAT_UI_TEXT, type SupportedLanguage } from '@/config';
-import { EmergencyCallButton } from '@/components/emergency-call-button';
+import { AikusAvatar } from '@/components/aikus-avatar';
+import { FLOW_TEXT } from '@/constants/flowCopy';
+import { useAppFlow } from '@/providers/app-flow-provider';
 import { askAikus } from '@/services/ai';
+import { getAvatarState } from '@/services/avatarState';
 import { hasEmergencyKeyword } from '@/services/emergencyKeywordCheck';
+import { getEmergencyCalmMessage, getHealthNote, hasHealthKeyword } from '@/services/healthSafety';
 import { getTimeGreeting } from '@/services/time';
 import { getDirectTimeAnswer } from '@/services/timeQuestions';
+import { getChatHistory, getProfileSettings, saveChatHistory, updateProfileSettings } from '@/services/profileStore';
 import type { ChatMessage } from '@/types/chat';
-
-const LANGUAGE_STORAGE_KEY = 'aikus-language';
+import type { TextSize } from '@/types/profile';
 
 function createWelcomeMessage(language: SupportedLanguage): ChatMessage {
   return {
@@ -50,10 +54,14 @@ async function hasVoiceForLanguage(language: SupportedLanguage): Promise<boolean
 }
 
 export default function LoginScreen() {
-  const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>('en');
+  const { activeProfile, language, changeLanguage } = useAppFlow();
+  const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>(language);
   const [messages, setMessages] = useState<ChatMessage[]>(() => [createWelcomeMessage('en')]);
+  const [profileDataLoaded, setProfileDataLoaded] = useState(false);
+  const [textSize, setTextSize] = useState<TextSize>('normal');
   const [draft, setDraft] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [hasReceivedFirstToken, setHasReceivedFirstToken] = useState(false);
   const [error, setError] = useState('');
   const [readAloudEnabled, setReadAloudEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -63,35 +71,32 @@ export default function LoginScreen() {
   const speechRequestRef = useRef(0);
 
   const uiStrings = useMemo(() => CHAT_UI_TEXT[selectedLanguage], [selectedLanguage]);
+  const flowText = FLOW_TEXT[selectedLanguage];
+  const avatarState = getAvatarState({ isSending, hasReceivedFirstToken, isSpeaking });
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    if (!activeProfile) return undefined;
     let isActive = true;
-
-    AsyncStorage.getItem(LANGUAGE_STORAGE_KEY)
-      .then((value) => {
-        if (!isActive) {
-          return;
-        }
-
-        if (value === 'en' || value === 'tl') {
-          setSelectedLanguage(value);
-          setMessages((current) =>
-            current.length === 1 && current[0]?.id === 'welcome-message'
-              ? [createWelcomeMessage(value)]
-              : current,
-          );
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
+    setProfileDataLoaded(false);
+    Promise.all([getChatHistory(activeProfile.id), getProfileSettings(activeProfile)]).then(([history, settings]) => {
+      if (!isActive) return;
+      setSelectedLanguage(settings.language);
+      setReadAloudEnabled(settings.readAloudEnabled);
+      readAloudRef.current = settings.readAloudEnabled;
+      setTextSize(settings.textSize);
+      setMessages(history.length > 0 ? history : [createWelcomeMessage(settings.language)]);
+      setProfileDataLoaded(true);
+    }).catch(() => {
+      if (isActive) setProfileDataLoaded(true);
+    });
+    return () => { isActive = false; };
+  }, [activeProfile]));
 
   useEffect(() => {
-    AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, selectedLanguage).catch(() => undefined);
-  }, [selectedLanguage]);
+    if (activeProfile && profileDataLoaded) {
+      void saveChatHistory(activeProfile.id, messages).catch(() => undefined);
+    }
+  }, [activeProfile, messages, profileDataLoaded]);
 
   useEffect(() => () => {
     speechRequestRef.current += 1;
@@ -107,6 +112,9 @@ export default function LoginScreen() {
   const changeReadAloud = async (enabled: boolean) => {
     readAloudRef.current = enabled;
     setReadAloudEnabled(enabled);
+    if (activeProfile) {
+      void updateProfileSettings(activeProfile, { readAloudEnabled: enabled }).catch(() => undefined);
+    }
     setVoiceUnavailable(false);
 
     if (!enabled) {
@@ -163,7 +171,7 @@ export default function LoginScreen() {
 
   const submitMessage = async () => {
     const trimmed = draft.trim();
-    if (!trimmed || isSending) {
+    if (!trimmed || isSending || !profileDataLoaded || !activeProfile) {
       return;
     }
 
@@ -177,28 +185,34 @@ export default function LoginScreen() {
     const nextContext = [...messages, userMessage];
     const assistantId = `assistant-${Date.now()}`;
     const directTimeAnswer = getDirectTimeAnswer(trimmed, selectedLanguage);
+    const emergencyCalmMessage = getEmergencyCalmMessage(trimmed, selectedLanguage);
 
     setMessages([
       ...nextContext,
       {
         id: assistantId,
         role: 'assistant',
-        content: directTimeAnswer ?? '',
+        content: emergencyCalmMessage ?? directTimeAnswer ?? '',
         createdAt: Date.now(),
       },
     ]);
     setDraft('');
     setError('');
+    if (emergencyCalmMessage) {
+      return;
+    }
     if (directTimeAnswer) {
       if (readAloudRef.current) {
         void speakReply(directTimeAnswer, selectedLanguage);
       }
       return;
     }
+    setHasReceivedFirstToken(false);
     setIsSending(true);
 
     try {
       const reply = await askAikus(nextContext, selectedLanguage, (cleanReply) => {
+        setHasReceivedFirstToken(true);
         setMessages((current) => {
           return current.map((message) =>
             message.id === assistantId ? { ...message, content: cleanReply } : message,
@@ -227,12 +241,22 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <Screen style={styles.safeArea}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
           <Text style={styles.brandName}>AIKUS</Text>
-          <Text style={styles.caption}>Local companion</Text>
+          <Text style={styles.caption}>{selectedLanguage === 'tl' ? 'Kaibigang lokal' : 'Local companion'}</Text>
+          <View style={styles.headerActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel={flowText.home} onPress={() => router.replace('/(app)/home')} style={styles.headerButton}>
+              <Text style={styles.headerButtonText}>{flowText.home}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={flowText.settings} onPress={() => router.push('/(app)/settings')} style={styles.headerButton}>
+              <Text style={styles.headerButtonText}>{flowText.settings}</Text>
+            </Pressable>
+          </View>
         </View>
+
+        <View style={styles.avatarScale}><AikusAvatar state={avatarState} language={selectedLanguage} /></View>
 
         <View style={styles.languageToggle}>
           {(['en', 'tl'] as SupportedLanguage[]).map((language) => (
@@ -241,6 +265,7 @@ export default function LoginScreen() {
               accessibilityRole="button"
               accessibilityLabel={CHAT_UI_TEXT[language].label}
               onPress={() => {
+                void changeLanguage(language).catch(() => undefined);
                 setSelectedLanguage(language);
                 setMessages((current) =>
                   current.length === 1 && current[0]?.id === 'welcome-message'
@@ -274,7 +299,7 @@ export default function LoginScreen() {
               hitSlop={10}
               value={readAloudEnabled}
               onValueChange={(enabled) => void changeReadAloud(enabled)}
-              trackColor={{ false: '#A9A29D', true: '#246B45' }}
+              trackColor={{ false: '#A9A29D', true: colors.accent }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -304,16 +329,21 @@ export default function LoginScreen() {
               style={styles.emergencyNotice}
             >
               <Text style={styles.emergencyNoticeText}>{uiStrings.emergencyHelpMessage}</Text>
-              <EmergencyCallButton
+              <EmergencyButton
                 language={selectedLanguage}
                 label={uiStrings.emergencyCallLabel}
               />
             </View>
           ) : null}
-          {messages.map((message) => {
+          {messages.map((message, index) => {
             if (isSending && message.role === 'assistant' && !message.content) {
               return null;
             }
+
+            const previousMessage = messages[index - 1];
+            const showHealthNote = message.role === 'assistant'
+              && previousMessage?.role === 'user'
+              && hasHealthKeyword(previousMessage.content);
 
             return (
               <View
@@ -332,11 +362,15 @@ export default function LoginScreen() {
                   <Text
                     style={[
                       styles.bubbleText,
+                      { fontSize: textSize === 'small' ? 18 : textSize === 'large' ? 24 : 20, fontFamily: 'Inter' },
                       message.role === 'user' && styles.userBubbleText,
                     ]}
                   >
                     {message.content || '...'}
                   </Text>
+                  {showHealthNote ? (
+                    <Text style={styles.healthNote}>{getHealthNote(selectedLanguage)}</Text>
+                  ) : null}
                 </View>
               </View>
             );
@@ -358,8 +392,8 @@ export default function LoginScreen() {
             value={draft}
             onChangeText={setDraft}
             placeholder={uiStrings.placeholder}
-            placeholderTextColor="#615148"
-            style={styles.input}
+            placeholderTextColor="#5C5148"
+            style={[styles.input, { fontSize: textSize === 'small' ? 18 : textSize === 'large' ? 24 : 20 }]}
             multiline
             maxLength={400}
             accessibilityLabel={uiStrings.placeholder}
@@ -371,14 +405,14 @@ export default function LoginScreen() {
             accessibilityLabel={uiStrings.sendLabel}
             style={[styles.sendButton, (!draft.trim() || isSending) && styles.sendButtonDisabled]}
             onPress={submitMessage}
-            disabled={!draft.trim() || isSending}
+            disabled={!draft.trim() || isSending || !profileDataLoaded}
           >
-            <Text style={styles.sendButtonText}>{uiStrings.sendLabel}</Text>
+            <Text accessibilityElementsHidden style={styles.sendButtonText}>?</Text>
           </Pressable>
         </View>
 
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -388,30 +422,39 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF9F4',
+    backgroundColor: colors.background,
   },
   header: {
+    flexWrap: 'wrap',
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1E1D6',
+    borderBottomColor: colors.border,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 8,
     alignItems: 'center',
   },
+  avatarScale: { transform: [{ scale: 1.125 }] },
   brandName: {
-    color: '#32251F',
+    color: colors.text,
     fontSize: 20,
+    fontFamily: 'Inter',
     lineHeight: 28,
     fontWeight: '800',
     letterSpacing: 2,
   },
   caption: {
-    color: '#A46841',
+    color: colors.secondaryText,
     fontSize: 18,
+    fontFamily: 'Inter',
     fontWeight: '600',
   },
+  headerActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
+  headerButton: { minHeight: 60, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 9, borderRadius: 999, backgroundColor: '#F0E3DA' },
+  headerButtonText: { color: colors.text, fontSize: 18,
+    fontFamily: 'Inter', lineHeight: 24, fontWeight: '700' },
   languageToggle: {
     flexDirection: 'row',
     gap: 12,
@@ -421,25 +464,26 @@ const styles = StyleSheet.create({
   },
   languageButton: {
     flex: 1,
-    minHeight: 56,
+    minHeight: 60,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E8D9CD',
-    backgroundColor: '#FFFDFB',
+    borderColor: colors.border,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
   languageButtonActive: {
-    backgroundColor: '#8A3417',
-    borderColor: '#8A3417',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   languageButtonText: {
-    color: '#32251F',
+    color: colors.text,
     fontSize: 18,
+    fontFamily: 'Inter',
     fontWeight: '700',
   },
   languageButtonTextActive: {
-    color: '#FFFFFF',
+    color: colors.card,
   },
   speechControls: {
     flexDirection: 'row',
@@ -450,43 +494,46 @@ const styles = StyleSheet.create({
   },
   readAloudControl: {
     flex: 1,
-    minHeight: 56,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#E8D9CD',
+    borderColor: colors.border,
     borderRadius: 14,
-    backgroundColor: '#FFFDFB',
+    backgroundColor: colors.card,
     paddingHorizontal: 14,
   },
   controlLabel: {
-    color: '#32251F',
+    color: colors.text,
     fontSize: 18,
+    fontFamily: 'Inter',
     fontWeight: '700',
   },
   stopButton: {
-    minHeight: 56,
+    minHeight: 60,
     minWidth: 82,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#70421F',
-    backgroundColor: '#FFFDFB',
+    borderColor: colors.secondaryText,
+    backgroundColor: colors.card,
     paddingHorizontal: 14,
   },
   stopButtonDisabled: {
     backgroundColor: '#F0E8E2',
   },
   stopButtonText: {
-    color: '#32251F',
+    color: colors.text,
     fontSize: 18,
+    fontFamily: 'Inter',
     fontWeight: '700',
   },
   voiceMessage: {
-    color: '#70421F',
+    color: colors.secondaryText,
     fontSize: 18,
+    fontFamily: 'Inter',
     lineHeight: 24,
     paddingHorizontal: 18,
     paddingBottom: 4,
@@ -497,14 +544,22 @@ const styles = StyleSheet.create({
     padding: 14,
     backgroundColor: '#FCE8E6',
     borderWidth: 2,
-    borderColor: '#B42318',
+    borderColor: colors.danger,
   },
   emergencyNoticeText: {
-    color: '#7A1710',
+    color: colors.danger,
     fontSize: 24,
+    fontFamily: 'Inter',
     lineHeight: 32,
     fontWeight: '800',
     textAlign: 'center',
+  },
+  healthNote: {
+    color: colors.secondaryText,
+    fontSize: 18,
+    fontFamily: 'Inter',
+    lineHeight: 23,
+    marginTop: 10,
   },
   chatList: {
     flex: 1,
@@ -530,22 +585,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   userBubble: {
-    backgroundColor: '#8A3417',
+    backgroundColor: colors.primary,
   },
   assistantBubble: {
-    backgroundColor: '#F8E9DE',
+    backgroundColor: colors.card,
   },
   bubbleText: {
-    color: '#2D241F',
+    color: colors.text,
     fontSize: 20,
+    fontFamily: 'Inter',
     lineHeight: 30,
   },
   userBubbleText: {
-    color: '#FFFFFF',
+    color: colors.card,
   },
   errorText: {
-    color: '#9D2F2F',
+    color: colors.danger,
     fontSize: 18,
+    fontFamily: 'Inter',
     lineHeight: 26,
     textAlign: 'center',
     marginTop: 8,
@@ -558,40 +615,43 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 20,
     borderTopWidth: 1,
-    borderTopColor: '#F1E1D6',
-    backgroundColor: '#FFF9F4',
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
   },
   input: {
     flex: 1,
-    minHeight: 56,
+    minHeight: 60,
     maxHeight: 120,
     borderWidth: 1,
-    borderColor: '#E8D9CD',
+    borderColor: colors.border,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 14,
-    backgroundColor: '#FFFFFF',
-    color: '#2D241F',
+    backgroundColor: colors.card,
+    color: colors.text,
     fontSize: 20,
+    fontFamily: 'Inter',
     lineHeight: 28,
   },
   sendButton: {
-    minHeight: 56,
-    minWidth: 90,
-    borderRadius: 16,
-    backgroundColor: '#8A3417',
+    minHeight: 60,
+    minWidth: 60,
+    width: 60,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 14,
   },
   sendButtonDisabled: {
-    backgroundColor: '#70421F',
+    backgroundColor: colors.secondaryText,
   },
   sendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    lineHeight: 24,
+    color: colors.card,
+    fontSize: 30,
+    fontFamily: 'Inter',
+    lineHeight: 36,
     fontWeight: '700',
   },
 });
