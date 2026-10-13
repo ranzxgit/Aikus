@@ -1,1 +1,58 @@
-[]
+[
+  {
+    "id": "osm-way-409054174",
+    "name": "Ospital ng Lipa",
+    "lat": 13.95697,
+    "lng": 121.16226,
+    "phone": "(043) 404-9152",
+    "address": "347 Balintawak Road, Lipa City, Batangas"
+  },
+  {
+    "id": "osm-way-670419488",
+    "name": "Lipa City District Hospital",
+    "lat": 13.93347,
+    "lng": 121.15919,
+    "phone": "",
+    "address": "Poblacion Barangay 7, Lipa City, Batangas"
+  },
+  {
+    "id": "osm-way-1338347858",
+    "name": "Divine Love Hospital",
+    "lat": 13.93679,
+    "lng": 121.15835,
+    "phone": "(043) 784-1338",
+    "address": "Sinagtala, Poblacion Barangay 7, Lipa City, Batangas 4217"
+  },
+  {
+    "id": "osm-way-182488048",
+    "name": "Lipa Medix Medical Center",
+    "lat": 13.94747,
+    "lng": 121.15753,
+    "phone": "(043) 756-1190",
+    "address": "President J.P. Laurel Highway, Balintawak, Lipa City, Batangas"
+  },
+  {
+    "id": "osm-way-155380641",
+    "name": "Mary Mediatrix Medical Center",
+    "lat": 13.94369,
+    "lng": 121.15210,
+    "phone": "(043) 773-6800",
+    "address": "J.P. Laurel Highway, Mataas na Lupa, Lipa City, Batangas 4217"
+  },
+  {
+    "id": "osm-node-12659499128",
+    "name": "Metro Lipa Medical Center",
+    "lat": 13.96839,
+    "lng": 121.16645,
+    "phone": "(043) 756-0549",
+    "address": "President J.P. Laurel Highway, Barangay Marawoy, Lipa City, Batangas 4217"
+  },
+  {
+    "id": "osm-way-942774164",
+    "name": "N.L. Villa Memorial Medical Center",
+    "lat": 13.93861,
+    "lng": 121.16571,
+    "phone": "(043) 756-4871",
+    "address": "Felix Manalo Street, Lipa City, Batangas 4217"
+  }
+]

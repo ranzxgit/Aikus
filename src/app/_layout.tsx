@@ -11,6 +11,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFF9F4' } }}>
         <Stack.Screen name="index" options={{ animation: 'fade' }} />
         <Stack.Screen name="login" options={{ animation: 'fade' }} />
+        <Stack.Screen name="hospitals" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
       </Stack>
       <View style={styles.emergencyDock}>

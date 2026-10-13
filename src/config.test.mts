@@ -74,10 +74,12 @@ test('Gemma model uses the configured generation options', () => {
 
 test('Tagalog examples are sent as user/assistant pairs after the system prompt', () => {
   const liveMessages = [{ role: 'user' as const, content: 'Kumusta po kayo?' }];
-  const payload = buildPromptMessages(liveMessages, 'tl');
+  const fixedDate = new Date('2026-10-13T11:06:00.000Z');
+  const payload = buildPromptMessages(liveMessages, 'tl', fixedDate);
 
   assert.equal(payload[0]?.role, 'system');
-  assert.equal(payload[0]?.content, TAGALOG_SYSTEM_PROMPT);
+  assert.ok(payload[0]?.content.startsWith(TAGALOG_SYSTEM_PROMPT));
+  assert.ok(payload[0]?.content.endsWith('Current date and time: Martes, Oktubre 13, 2026, 7:06 ng gabi (Philippines time). Part of day: gabi.'));
   assert.deepEqual(payload.slice(1, 1 + TAGALOG_EXAMPLES.length), TAGALOG_EXAMPLES);
   assert.deepEqual(payload.slice(-1), liveMessages);
   assert.equal(TAGALOG_EXAMPLES.length, 20);
@@ -85,6 +87,11 @@ test('Tagalog examples are sent as user/assistant pairs after the system prompt'
     assert.equal(TAGALOG_EXAMPLES[index]?.role, 'user');
     assert.equal(TAGALOG_EXAMPLES[index + 1]?.role, 'assistant');
   }
+});
+
+test('both prompts instruct Aikus to rely on the supplied date and time', () => {
+  assert.ok(ENGLISH_SYSTEM_PROMPT.includes('If asked for the date or time, use exactly what is given. Never guess.'));
+  assert.ok(TAGALOG_SYSTEM_PROMPT.includes('If asked for the date or time, use exactly what is given. Never guess.'));
 });
 
 test('markdown formatting is removed from replies', () => {

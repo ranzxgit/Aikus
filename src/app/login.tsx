@@ -18,17 +18,22 @@ import { CHAT_UI_TEXT, type SupportedLanguage } from '@/config';
 import { EmergencyCallButton } from '@/components/emergency-call-button';
 import { askAikus } from '@/services/ai';
 import { hasEmergencyKeyword } from '@/services/emergencyKeywordCheck';
+import { getTimeGreeting } from '@/services/time';
+import { getDirectTimeAnswer } from '@/services/timeQuestions';
 import type { ChatMessage } from '@/types/chat';
 
 const LANGUAGE_STORAGE_KEY = 'aikus-language';
-const initialMessages: ChatMessage[] = [
-  {
+
+function createWelcomeMessage(language: SupportedLanguage): ChatMessage {
+  return {
     id: 'welcome-message',
     role: 'assistant',
-    content: 'Hello. I am Aikus. How can I help you today?',
+    content: language === 'tl'
+      ? `${getTimeGreeting(language)} Kumusta po kayo ngayon?`
+      : `${getTimeGreeting(language)} I am Aikus. How can I help you today?`,
     createdAt: Date.now(),
-  },
-];
+  };
+}
 
 function getSpeechLanguage(language: SupportedLanguage): string {
   return language === 'tl' ? 'fil-PH' : 'en-US';
@@ -46,7 +51,7 @@ async function hasVoiceForLanguage(language: SupportedLanguage): Promise<boolean
 
 export default function LoginScreen() {
   const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>('en');
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [createWelcomeMessage('en')]);
   const [draft, setDraft] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
@@ -70,6 +75,11 @@ export default function LoginScreen() {
 
         if (value === 'en' || value === 'tl') {
           setSelectedLanguage(value);
+          setMessages((current) =>
+            current.length === 1 && current[0]?.id === 'welcome-message'
+              ? [createWelcomeMessage(value)]
+              : current,
+          );
         }
       })
       .catch(() => undefined);
@@ -166,18 +176,25 @@ export default function LoginScreen() {
 
     const nextContext = [...messages, userMessage];
     const assistantId = `assistant-${Date.now()}`;
+    const directTimeAnswer = getDirectTimeAnswer(trimmed, selectedLanguage);
 
     setMessages([
       ...nextContext,
       {
         id: assistantId,
         role: 'assistant',
-        content: '',
+        content: directTimeAnswer ?? '',
         createdAt: Date.now(),
       },
     ]);
     setDraft('');
     setError('');
+    if (directTimeAnswer) {
+      if (readAloudRef.current) {
+        void speakReply(directTimeAnswer, selectedLanguage);
+      }
+      return;
+    }
     setIsSending(true);
 
     try {
@@ -223,7 +240,14 @@ export default function LoginScreen() {
               key={language}
               accessibilityRole="button"
               accessibilityLabel={CHAT_UI_TEXT[language].label}
-              onPress={() => setSelectedLanguage(language)}
+              onPress={() => {
+                setSelectedLanguage(language);
+                setMessages((current) =>
+                  current.length === 1 && current[0]?.id === 'welcome-message'
+                    ? [createWelcomeMessage(language)]
+                    : current,
+                );
+              }}
               style={[
                 styles.languageButton,
                 selectedLanguage === language && styles.languageButtonActive,
