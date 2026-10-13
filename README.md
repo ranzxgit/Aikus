@@ -1,3 +1,5 @@
+NOTE: This project is currently under development
+
 # Welcome to your Expo app 👋
 
 <p align="center">
