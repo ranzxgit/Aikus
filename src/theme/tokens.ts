@@ -10,6 +10,13 @@ export const colors = {
   focus: '#285B49',
 };
 
+export const splashBackground = '#FFE3CC';
+
+export const languageBackground = '#D8E8F0';
+export const ink = '#1F2A33';
+export const inkSecondary = '#3E4C57';
+export const accent = '#BF571A';
+
 export const spacing = { 1: 4, 2: 8, 3: 12, 4: 16, 6: 24, 8: 32, 12: 48 } as const;
 export const radius = { card: 16, screen: 24, pill: 999 } as const;
 export const typeScale = {

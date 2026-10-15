@@ -1,63 +1,34 @@
 NOTE: This project is currently under development
 
-# Welcome to your Expo app 👋
+# Aikus
 
-<p align="center">
-  <img src="logo.png" alt="Aikus" width="200" height="200">
-</p>
+## Run on web
 
+Install packages with npm install, then start the web app with:
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+    npx expo start --web
 
-## Get started
+The app opens to a loading screen. On first launch, choose English or Tagalog, then add a local profile or continue with the local Guest profile. Profiles can use an optional four-digit PIN. Select a profile and continue to Home. Returning launches restore the active profile and its language.
 
-1. Install dependencies
+In development, append `?motion=on` to the web URL to preview the full splash animation even when reduced motion is enabled. Settings includes an Animations choice for On, Off, or Follows system.
 
-   ```bash
-   npm install
-   ```
+## App flow and local data
 
-2. Start the app
+- Expo Router groups separate language choice, profile selection, PIN entry, and profile management from Home, chat, hospitals, and Settings.
+- Profile names, language, settings, and each profile's chat history are stored locally. There is no app backend or cloud account.
+- PINs are never stored as plain text. A per-profile random salt and SHA-256 hash are saved with SecureStore on Android/iOS and AsyncStorage on web. A four-digit PIN is basic protection, not strong security.
+- Deleting a profile also removes its PIN credential, settings, and chat history. Settings asks for confirmation before clearing history or deleting a named profile.
+- The loading screen checks GET /api/tags on the configured Ollama URL for up to three seconds. If it cannot connect, Home displays a dismissible notice and retry action. The chat still reports its normal local-helper connection error when a message is sent.
+- The global red 911 button stays visible across the loading, language, profile, PIN, Home, chat, hospital, and Settings screens.
 
-   ```bash
-   npx expo start
-   ```
+## Checks
 
-In the output, you'll find options to open the app in a
+Type-check the project with npx tsc --noEmit.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Run the app flow tests with node --test src/services/appFlow.test.mts.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+For Ollama-backed chat, run Ollama locally and keep OLLAMA_BASE_URL in src/config.ts pointed at the local service. Web geolocation requires localhost or HTTPS.
 
-## Get a fresh project
+## Android status
 
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Phase 5 is paused. The app flow is prepared for local web testing; the Android Expo Go flow has not been started or tested.

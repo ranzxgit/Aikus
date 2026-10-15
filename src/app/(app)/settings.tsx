@@ -8,7 +8,7 @@ import { AccessiblePressable as Pressable, LargeTitle, Screen } from '@/componen
 import { FLOW_TEXT } from '@/constants/flowCopy';
 import { useAppFlow } from '@/providers/app-flow-provider';
 import { clearChatHistory, getProfileSettings, removeProfile, setProfilePin, updateProfileSettings } from '@/services/profileStore';
-import type { ProfileSettings, TextSize } from '@/types/profile';
+import type { AnimationPreference, ProfileSettings, TextSize } from '@/types/profile';
 
 type PendingConfirmation = 'clear' | 'delete' | null;
 
@@ -76,6 +76,11 @@ export default function SettingsScreen() {
     normal: text.normal,
     large: text.large,
   };
+  const animationLabels: Record<AnimationPreference, string> = {
+    on: text.animationsOn,
+    off: text.animationsOff,
+    system: text.animationsSystem,
+  };
 
   return (
     <Screen style={styles.safeArea}>
@@ -103,6 +108,26 @@ export default function SettingsScreen() {
             {(['small', 'normal', 'large'] as const).map((size) => (
               <Pressable key={size} accessibilityRole="button" accessibilityLabel={selectedLabels[size]} accessibilityState={{ selected: settings.textSize === size }} onPress={() => void update({ textSize: size })} style={[styles.choice, settings.textSize === size && styles.choiceActive]}>
                 <Text style={[styles.choiceText, settings.textSize === size && styles.choiceTextActive]}>{selectedLabels[size]}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>{text.animations}</Text>
+          <View style={styles.choiceRow}>
+            {(['on', 'off', 'system'] as const).map((preference) => (
+              <Pressable
+                key={preference}
+                accessibilityRole="radio"
+                accessibilityLabel={`${text.animations}: ${animationLabels[preference]}`}
+                accessibilityState={{ selected: settings.animationPreference === preference }}
+                onPress={() => void update({ animationPreference: preference })}
+                style={[styles.choice, settings.animationPreference === preference && styles.choiceActive]}
+              >
+                <Text style={[styles.choiceText, settings.animationPreference === preference && styles.choiceTextActive]}>
+                  {animationLabels[preference]}
+                </Text>
               </Pressable>
             ))}
           </View>

@@ -12,7 +12,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#E8590C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -28,17 +28,33 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFF9F4",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#FFE3CC",
+          "image": "./logo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#FFE3CC",
+            "image": "./logo.png"
+          },
+          "android": {
+            "backgroundColor": "#FFE3CC",
+            "image": "./logo.png",
+            "imageWidth": 200,
+            "resizeMode": "contain",
+            "dark": {
+              "backgroundColor": "#FFE3CC",
+              "image": "./logo.png"
+            }
+          }
         }
-    ],
-    [
-      "expo-location",
-      {
-        "locationWhenInUsePermission": "Allow Aikus to use your location to show nearby hospitals."
-      }
-    ]
+      ],
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Aikus to use your location to show nearby hospitals."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
