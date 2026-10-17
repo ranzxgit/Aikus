@@ -32,6 +32,10 @@ function NavigationRoot({ fontsReady }: { fontsReady: boolean }) {
   const width = viewportWidth || 390;
   const routeSegments = segments as readonly string[];
   const isSplashRoute = routeSegments.length === 0 || routeSegments[0] === 'index';
+  const isHomeRoute = routeSegments[0] === '(app)' && routeSegments[1] === 'home';
+  const isProfileSelectOrPinRoute =
+    routeSegments[0] === '(auth)' &&
+    (routeSegments[1] === 'login' || routeSegments[1] === 'pin');
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -59,9 +63,9 @@ function NavigationRoot({ fontsReady }: { fontsReady: boolean }) {
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(app)" />
           </Stack>
-          {!isSplashRoute ? (
+          {!isSplashRoute && !isProfileSelectOrPinRoute ? (
             <View style={[styles.emergencyDock, { width: Math.max(0, width - 32), paddingBottom: Math.max(insets.bottom, spacing[4]) }]}>
-              <EmergencyButton language={language} label={FLOW_TEXT[language].callNow} />
+              <EmergencyButton language={language} label={FLOW_TEXT[language].callNow} homeVariant={isHomeRoute} />
             </View>
           ) : null}
         </>

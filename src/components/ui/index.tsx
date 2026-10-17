@@ -1,6 +1,7 @@
 import * as Linking from 'expo-linking';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View, Vibration, useWindowDimensions, type PressableProps, type PressableStateCallbackType } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View, Vibration, useWindowDimensions, type PressableProps } from 'react-native';
 import type { ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -9,19 +10,27 @@ import { colors, radius, softShadow, spacing, typeScale } from '@/theme/tokens';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function AccessiblePressable({ style, onPress, onPressIn, onPressOut, onFocus, onBlur, children, ...props }: PressableProps) {
+export function AccessiblePressable({
+  style,
+  onPress,
+  onPressIn,
+  onPressOut,
+  onFocus,
+  onBlur,
+  children,
+  pressedScale = 0.98,
+  ...props
+}: PressableProps & { pressedScale?: number }) {
   const reduced = useReducedMotion();
   const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   // eslint-disable-next-line react-hooks/immutability -- Reanimated owns this mutable animation value.
-  useEffect(() => { scale.value = withTiming(!reduced && pressed ? 0.98 : 1, { duration: 120 }); }, [pressed, reduced, scale]);
+  useEffect(() => { scale.value = withTiming(!reduced && pressed ? pressedScale : 1, { duration: 120 }); }, [pressed, pressedScale, reduced, scale]);
   const focusStyle = focused && Platform.OS === 'web' ? styles.webFocus : null;
-  const mergedStyle = typeof style === 'function'
-    ? (state: PressableStateCallbackType) => style(state) ? [style(state), focusStyle, animatedStyle] : [focusStyle, animatedStyle]
-    : [style, focusStyle, animatedStyle];
-  return <AnimatedPressable {...props} style={mergedStyle as never}
+  const resolvedStyle = typeof style === 'function' ? style({ pressed, hovered: false }) : style;
+  return <AnimatedPressable {...props} style={[resolvedStyle, focusStyle, animatedStyle]}
     onFocus={(event) => { setFocused(true); onFocus?.(event); }}
     onBlur={(event) => { setFocused(false); onBlur?.(event); }}
     onPressIn={(event) => { setPressed(true); onPressIn?.(event); }}
@@ -69,7 +78,7 @@ export function TextButton(props: ButtonProps) { return <ButtonBase {...props} v
 export function IconButton({ label, onPress, icon = '*', style }: ButtonProps & { icon?: string }) { return <SecondaryButton label={label} onPress={onPress} style={[styles.iconButton, ...(Array.isArray(style) ? style : style ? [style] : [])]}><Text accessibilityElementsHidden style={styles.icon}>{icon}</Text></SecondaryButton>; }
 export function ListRow({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.listRow, style]}>{children}</View>; }
 
-export function EmergencyButton({ language = 'en', label }: { language?: SupportedLanguage; label?: string }) {
+export function EmergencyButton({ language = 'en', label, homeVariant = false }: { language?: SupportedLanguage; label?: string; homeVariant?: boolean }) {
   const [busy, setBusy] = useState(false);
   const t = CHAT_UI_TEXT[language];
   const placeCall = async () => { try { setBusy(true); await Linking.openURL('tel:911'); } catch { Alert.alert(t.emergencyCallError); } finally { setBusy(false); } };
@@ -77,8 +86,13 @@ export function EmergencyButton({ language = 'en', label }: { language?: Support
     if (Platform.OS === 'web') { if (globalThis.confirm(`${t.emergencyConfirmationTitle}\n${t.emergencyConfirmationMessage}`)) void placeCall(); }
     else Alert.alert(t.emergencyConfirmationTitle, t.emergencyConfirmationMessage, [{ text: t.emergencyCancelLabel, style: 'cancel' }, { text: t.emergencyConfirmLabel, onPress: () => void placeCall() }]);
   };
-  return <AccessiblePressable accessibilityRole="button" accessibilityLabel={label ?? t.emergencyButtonLabel} accessibilityHint={t.emergencyConfirmationMessage} disabled={busy} onPress={confirm} style={[styles.buttonFrame, styles.fullWidth]}>
-    <View style={styles.emergency}><Text accessibilityElementsHidden style={styles.phone}>☎</Text><Text style={styles.emergencyText}>{label ?? t.emergencyButtonLabel}</Text></View>
+  return <AccessiblePressable accessibilityRole="button" accessibilityLabel={label ?? t.emergencyButtonLabel} accessibilityHint={t.emergencyConfirmationMessage} disabled={busy} onPress={confirm} style={[styles.buttonFrame, styles.fullWidth, homeVariant && styles.homeEmergencyFrame]}>
+    <View style={[styles.emergency, homeVariant && styles.homeEmergency]}>
+      {homeVariant
+        ? <Ionicons name="call" size={20} color="#FFFFFF" accessibilityElementsHidden />
+        : <Text accessibilityElementsHidden style={styles.phone}>☎</Text>}
+      <Text style={[styles.emergencyText, homeVariant && styles.homeEmergencyText]}>{label ?? t.emergencyButtonLabel}</Text>
+    </View>
   </AccessiblePressable>;
 }
 
@@ -98,5 +112,8 @@ const styles = StyleSheet.create({
   buttonLabel: { color: '#FFFFFF', ...typeScale.button, fontFamily: 'Inter', textAlign: 'center' }, darkLabel: { color: colors.primary }, linkLabel: { color: colors.accent, textDecorationLine: 'underline' },
   iconButton: { width: 60, height: 60, paddingHorizontal: 0 }, icon: { color: colors.primary, fontSize: 26 }, listRow: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   disabled: {}, emergency: { width: '100%', boxSizing: 'border-box', minHeight: 60, borderRadius: radius.pill, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 10, paddingHorizontal: 16 }, phone: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' }, emergencyText: { color: '#FFFFFF', fontFamily: 'Inter', ...typeScale.button, textAlign: 'center', flexShrink: 1 },
+  homeEmergencyFrame: { minHeight: 56 },
+  homeEmergency: { minHeight: 56, backgroundColor: colors.homeEmergency },
+  homeEmergencyText: { fontSize: 18, lineHeight: 24, fontWeight: '600' },
   webFocus: { borderWidth: 3, borderColor: colors.focus, outlineStyle: 'solid', outlineWidth: 2, outlineColor: colors.focus },
 });

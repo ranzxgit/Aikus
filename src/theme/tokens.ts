@@ -8,9 +8,31 @@ export const colors = {
   border: '#E8E0D5',
   danger: '#8F1D18',
   focus: '#285B49',
+  homeOrange: '#E8590C',
+  homeOrangeText: '#1F130B',
+  homeTileBorder: '#E9DFD0',
+  homeEmergency: '#B3261E',
 };
 
-export const splashBackground = '#FFE3CC';
+export const splashBackground = '#FFF8F0';
+export const splashGlow = '#FFE3CC';
+export const splashProgressTrack = '#F0E2D2';
+export const splashProgressFill = '#E8590C';
+export const splashText = '#2B2118';
+export const splashLogoShadow = '#E8590C';
+
+export const profileScreenColors = {
+  background: '#FBF6EE',
+  divider: '#E9DFD0',
+  avatar: '#EFE3D3',
+  key: '#F6EDDF',
+  keyBorder: '#E2D5C2',
+  keyPressed: '#EBDDC8',
+  rowPressed: '#F3EADB',
+  ink: '#2B2118',
+  secondaryText: '#5E5146',
+} as const;
+export const fontFamily = 'Inter' as const;
 
 export const languageBackground = '#D8E8F0';
 export const ink = '#1F2A33';
