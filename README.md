@@ -1,6 +1,8 @@
 NOTE: This project is currently under development
 
 # Aikus
+<img width="1024" height="1024" alt="app-icon" src="https://github.com/user-attachments/assets/3348274c-0340-461f-828b-6bcfd78a55c5" />
+
 
 ## Run on web
 
